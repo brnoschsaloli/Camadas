@@ -8,8 +8,8 @@
 
 #esta é a camada superior, de aplicação do seu software de comunicação serial UART.
 #para acompanhar a execução e identificar erros, construa prints ao longo do código! 
-
-
+from enlaceTx import *
+from enlaceRx import *
 from enlace import *
 import time
 import numpy as np
@@ -35,59 +35,22 @@ def main():
     
         # Ativa comunicacao. Inicia os threads e a comunicação seiral 
         com1.enable()
-        #Se chegamos até aqui, a comunicação foi aberta com sucesso. Faça um print para informar.
+
         print("Abriu a comunicação")
-        
-           
-                  
-        #aqui você deverá gerar os dados a serem transmitidos. 
-        #seus dados a serem transmitidos são um array bytes a serem transmitidos. Gere esta lista com o 
-        #nome de txBuffer. Ela sempre irá armazenar os dados a serem enviados.
-        
-        #txBuffer = imagem em bytes!
-        with open("img/imagem.jpeg", "rb") as image:
-            f = image.read()
-            b = bytearray(f)
-        txBuffer = b  #isso é um array de bytes
-       
-        print("meu array de bytes tem tamanho {}" .format(len(txBuffer)))
-        #faça aqui uma conferência do tamanho do seu txBuffer, ou seja, quantos bytes serão enviados.
-       
-            
-        #finalmente vamos transmitir os dados. Para isso usamos a funçao sendData que é um método da camada enlace.
-        #faça um print para avisar que a transmissão vai começar.
-        print("A transmissão vai começar")
-        #tente entender como o método send funciona!
-        #Cuidado! Apenas trasmita arrays de bytes!
-               
-        
-        com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
-        # time.sleep(0.5)  
-        # A camada enlace possui uma camada inferior, TX possui um método para conhecermos o status da transmissão
-        # O método não deve estar fincionando quando usado como abaixo. deve estar retornando zero. Tente entender 
-        # como esse método funciona e faça-o funcionar.
-        txSize = com1.tx.getStatus()
-        while txSize == 0:
-           txSize = com1.tx.getStatus()
-            
-        
-        print('enviou = {}' .format(txSize))
-        
-        #Agora vamos iniciar a recepção dos dados. Se algo chegou ao RX, deve estar automaticamente guardado
-        #Observe o que faz a rotina dentro do thread RX
-        #print um aviso de que a recepção vai começar.
+
         print("A recepção vai começar")
+
+        print("esperando um byte de sacrifício")
+        rxBuffer, nRx = com1.getData(1)
+        com1.rx.clearBuffer()
+        time.sleep(1)
+
+        print("sacrificado")
+
+        rxBuffer, nRx = com1.getData(0)
         
-        #Será que todos os bytes enviados estão realmente guardadas? Será que conseguimos verificar?
-        #Veja o que faz a funcao do enlaceRX  getBufferLen
-      
-        #acesso aos bytes recebidos
-        txLen = len(txBuffer)
-        rxBuffer, nRx = com1.getData(txLen)
-        print("recebeu {} bytes" .format(len(rxBuffer)))
-        with open("img/imagemCopia.jpeg", "wb") as imagemCopia:
-            imagemCopia.write(rxBuffer)
-        
+        print(rxBuffer)
+
 
             
     
