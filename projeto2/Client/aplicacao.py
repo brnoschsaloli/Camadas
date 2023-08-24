@@ -22,8 +22,17 @@ import numpy as np
 #use uma das 3 opcoes para atribuir à variável a porta usada
 #serialName = "/dev/ttyACM0"           # Ubuntu (variacao de)
 #serialName = "/dev/tty.usbmodem1411" # Mac    (variacao de)
-serialName = "COM6"                  # Windows(variacao de)
+serialName = "COM3"                  # Windows(variacao de)
 
+Comando1 = bytes([0X00, 0X00, 0X00, 0X00]) 
+Comando2 = bytes([0X00, 0X00, 0XBB, 0X00])
+Comando3 = bytes([0XBB, 0X00, 0X00]) 
+Comando4 = bytes([0X00, 0XBB, 0X00]) 
+Comando5 = bytes([0X00, 0X00, 0XBB]) 
+Comando6 = bytes([0X00, 0XAA])
+Comando7 = bytes([0XBB, 0X00]) 
+Comando8 = bytes([0X00])
+Comando9 = bytes([0XBB]) 
 
 def main():
     try:
@@ -45,10 +54,7 @@ def main():
         #nome de txBuffer. Ela sempre irá armazenar os dados a serem enviados.
         
         #txBuffer = imagem em bytes!
-        with open("img/imagem.jpeg", "rb") as image:
-            f = image.read()
-            b = bytearray(f)
-        txBuffer = b  #isso é um array de bytes
+        txBuffer = Comando9  #isso é um array de bytes
        
         print("meu array de bytes tem tamanho {}" .format(len(txBuffer)))
         #faça aqui uma conferência do tamanho do seu txBuffer, ou seja, quantos bytes serão enviados.
@@ -76,21 +82,12 @@ def main():
         #Agora vamos iniciar a recepção dos dados. Se algo chegou ao RX, deve estar automaticamente guardado
         #Observe o que faz a rotina dentro do thread RX
         #print um aviso de que a recepção vai começar.
-        print("A recepção vai começar")
-        
+
         #Será que todos os bytes enviados estão realmente guardadas? Será que conseguimos verificar?
         #Veja o que faz a funcao do enlaceRX  getBufferLen
       
         #acesso aos bytes recebidos
-        txLen = len(txBuffer)
-        rxBuffer, nRx = com1.getData(txLen)
-        print("recebeu {} bytes" .format(len(rxBuffer)))
-        with open("img/imagemCopia.jpeg", "wb") as imagemCopia:
-            imagemCopia.write(rxBuffer)
-        
 
-            
-    
         # Encerra comunicação
         print("-------------------------")
         print("Comunicação encerrada")
