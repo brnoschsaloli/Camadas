@@ -51,9 +51,16 @@ def main():
         lista_comandos = []
         while inicia:
         
+            prob = [1,2,3,4]
             n, nRx = com1.getData(1)
             n = int.from_bytes(n, "little")
-            rxBuffer, nRx = com1.getData(n)
+            if n not in prob:
+                rxBuffer = []
+                rxBuffer.append(n)
+                res, nRx = com1.getData(n)
+                rxBuffer.append(res)    
+            else:
+                rxBuffer, nRx = com1.getData(n)
             lista_comandos.append(rxBuffer)
             total +=1
             if rxBuffer == b'\xff':
