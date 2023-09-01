@@ -46,48 +46,65 @@ def main():
         time.sleep(1)
 
         print("byte sacrificado com sucesso!\n")
-        total = 0
+
         inicia = True
-        lista_comandos = []
+        pacote_atual_int = 0
+        pacote_anterior_int = 0
+        ultimo_pacote = 0
+        imagem = b''
         while inicia:
-        
-            prob = [1,2,3,4]
-            n, nRx = com1.getData(1)
-            n_int = int.from_bytes(n, "little")
-            if n_int not in prob:
-                rxBuffer = (n)
-                res, nRx = com1.getData(2)
-                rxBuffer = rxBuffer + res    
+
+            print("A recepção vai começar \n")
+
+            pacote_atual_b, nRx = com1.getData(2)
+            pacote_atual_int = int.from_bytes(pacote_atual_b, "little")
+
+            if pacote_atual_int == pacote_anterior_int + 1:
+                pacote_correto = True
+
+            ultimo_pacote_b, _ = com1.getData(2)
+            ultimo_pacote = int.from_bytes(ultimo_pacote_b, "little")
+
+            tamanho_payload, _ = com1.getData(1)
+            tamanho_payload_int = int.from_bytes(tamanho_payload, "little")
+
+            if pacote_atual_int == ultimo_pacote:
+                payload, _ = com1.getData(tamanho_payload_int)
             else:
-                rxBuffer, nRx = com1.getData(n_int)
-            lista_comandos.append(rxBuffer)
-            total +=1
-            if rxBuffer == b'\xff':
-                inicia=False
-        
-        print(f'Total de comandos recebidos = {total} \n') 
-        print(f'A lista de comandos recebidos é: \n\n {lista_comandos} \n')
-        print("a recepção terminou \n")
-        print("o envio vai começar \n") 
+                payload, _ = com1.getData(50)
 
-        txBuffer = total.to_bytes(3, "little")
+            eop, _ = com1.getData(3)
 
-        com1.sendData(np.asarray(txBuffer))
+            print("a recepção terminou \n")
 
-        txSize = com1.tx.getStatus()
-        while txSize == 0:
-           txSize = com1.tx.getStatus()
-        print('enviou o número de comandos recebidos em {} bytes \n' .format(txSize))
+            if eop == b'\xff\xff\xff':
+                eop_correto = True
 
-        
+            if eop_correto and pacote_correto:
 
-        print("o envio terminou \n")
+                imagem = imagem + (payload)
+                pacote_anterior_int = pacote_atual_int
 
+                if pacote_atual_int == ultimo_pacote:
+                    inicia = False
+                    txBuffer = b'transmissao sucedida'
+                    print("o envio vai começar \n")
+                    com1.sendData(np.asarray(txBuffer))
+                    print("o envio terminou \n")
 
-            
-
-            
-    
+                else:
+                    txBuffer = b'ok'
+                    print("o envio vai começar \n")
+                    com1.sendData(np.asarray(txBuffer))
+                    print("o envio terminou \n")
+                    
+            else:
+                txBuffer = b'erro!'
+                print("o envio vai começar \n")
+                com1.sendData(np.asarray(txBuffer))
+                print("o envio terminou \n")
+                inicia = False     
+     
         # Encerra comunicação
         print("-------------------------")
         print("Comunicação encerrada")
