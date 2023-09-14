@@ -25,16 +25,6 @@ import random
 #serialName = "/dev/tty.usbmodem1411" # Mac    (variacao de)
 serialName = "COM3"                  # Windows(variacao de)
 
-Comando1 = bytes([0x04, 0X00, 0X00, 0X00, 0X00]) 
-Comando2 = bytes([0x04, 0X00, 0X00, 0XBB, 0X00])
-Comando3 = bytes([0XBB, 0X00, 0X00]) 
-Comando4 = bytes([0X00, 0XBB, 0X00]) 
-Comando5 = bytes([0X00, 0X00, 0XBB]) 
-Comando6 = bytes([0x02, 0X00, 0XAA])
-Comando7 = bytes([0x02, 0XBB, 0X00]) 
-Comando8 = bytes([0x01, 0X00])
-Comando9 = bytes([0x01, 0XBB])
-
 def main():
     try:
         print("Iniciou o main")
@@ -57,38 +47,91 @@ def main():
         #nome de txBuffer. Ela sempre irá armazenar os dados a serem enviados.
         
         #txBuffer = imagem em bytes!
-        N = random.randint(10,30)
-        lista_comandos = [Comando1, Comando2, Comando3, Comando4, Comando5, Comando6, Comando7, Comando8, Comando9]
-        i = 1
-        while i <= N:
-            comando = random.randint(0,8)
+        tamanhos = {
+            '0': 0x00,
+            '1': 0x00,
+            '2': 0x00,
+            '3': 0x00,
+            '4': 0x00,
+            '5': 0x00,
+            '6': 0x00,
+            '7': 0x00,
+            '8': 0x00,
+            '9': 0x00,
+            '10': 0x00,
+            '11': 0x00,
+        }
+
+        with open("Client/img/imagem.jpg", "rb") as image:
+            f = image.read()
+            b = bytearray(f)
+            c = b
+
+        txBuffer = c  #isso é um array de bytes
+        tamanho = len(txBuffer)
+        ntotal = tamanho//50
+        nresto = tamanho%50
+
+        if nresto != 0:
+            ntotal += 1
+        tamanhos['4'] = nresto
+        
+        if ntotal > 255:
+            tamanhos['2'] = 255
+            tamanhos['3'] = (ntotal - 255)
+        else:
+            tamanhos['2'] = ntotal
+
+        n = 1
+        while n <= ntotal:
+            if n <= 255:
+                tamanhos['0'] = n
+            else:
+                tamanhos['0'] = 0xff
+                tamanhos['1'] = (n-255)
             
-            txBuffer = lista_comandos[comando]  #isso é um array de bytes
+            head = bytes([tamanhos['0'], tamanhos['1'], tamanhos['2'], tamanhos['3'], tamanhos['4'], tamanhos['5'], tamanhos['6'], tamanhos['7'], tamanhos['8'], tamanhos['9'], tamanhos['10'], tamanhos['11']])
+            payload = c[0:50]
+            c = c[50:tamanho]
+            Eop = bytes([0xff,0xff,0xff])
+
+            txBuffer = head + payload + Eop
         
             print("meu array de bytes tem tamanho {}" .format(len(txBuffer)))
-            #faça aqui uma conferência do tamanho do seu txBuffer, ou seja, quantos bytes serão enviados.
-        
-                
-            #finalmente vamos transmitir os dados. Para isso usamos a funçao sendData que é um método da camada enlace.
-            #faça um print para avisar que a transmissão vai começar.
+
             print("A transmissão vai começar")
-            #tente entender como o método send funciona!
-            #Cuidado! Apenas trasmita arrays de bytes!
-                
-            
+
             com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
             time.sleep(0.05)
-            # time.sleep(0.5)  
-            # A camada enlace possui uma camada inferior, TX possui um método para conhecermos o status da transmissão
-            # O método não deve estar fincionando quando usado como abaixo. deve estar retornando zero. Tente entender 
-            # como esse método funciona e faça-o funcionar.
+
             txSize = com1.tx.getStatus()
             while txSize == 0:
                 txSize = com1.tx.getStatus()
-                
-            
+                        
             print('enviou = {}' .format(txSize))
-            i += 1
+
+            while com1.rx.getBufferLen() == 0:
+                com1.rx.getBufferLen()
+            
+            rxBuffer, nRx = com1.getData(1)
+
+            while rxBuffer == b'erro!':
+                com1.sendData(np.asarray(txBuffer))
+                time.sleep(0.05)
+
+                txSize = com1.tx.getStatus()
+                while txSize == 0:
+                    txSize = com1.tx.getStatus()
+                        
+                print('enviou = {}' .format(txSize))
+
+                while com1.rx.getBufferLen() == 0:
+                    com1.rx.getBufferLen() == 0
+                
+                rxBuffer, nRx = com1.getData(1)
+
+            n += 1
+
 
         #Envia bit final    
         txBuffer = bytes([0x01, 0xFF])  #isso é um array de bytes
@@ -109,7 +152,10 @@ def main():
             
         print('enviou = {}' .format(txSize))
 
-        time.sleep(5)
+        t = time.time() + 5
+        while com1.rx.getBufferLen() == 0 and time.time() < t:
+            com1.rx.getBufferLen() == 0
+        
         #Agora vamos iniciar a recepção dos dados. Se algo chegou ao RX, deve estar automaticamente guardado
         #Observe o que faz a rotina dentro do thread RX
         #print um aviso de que a recepção vai começar.
@@ -124,13 +170,6 @@ def main():
             print("Comunicação encerrada")
             print("-------------------------")
             com1.disable()
-
-        rxBuffer, nRx = com1.getData(2)
-
-        if (i) != int.from_bytes(rxBuffer, "little"):
-            print('ERRO!')
-        else:
-            print('SUCESSO!')
 
         # Encerra comunicação
         print("-------------------------")
