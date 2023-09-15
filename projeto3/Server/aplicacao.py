@@ -13,7 +13,7 @@ from enlaceRx import *
 from enlace import *
 import time
 import numpy as np
-
+import os
 # voce deverá descomentar e configurar a porta com através da qual ira fazer comunicaçao
 #   para saber a sua porta, execute no terminal :
 #   python -m serial.tools.list_ports
@@ -52,6 +52,18 @@ def main():
         pacote_anterior_int = 0
         ultimo_pacote = 0
         imagem = b''
+
+        handshake, _ = com1.getData(1)
+        print(handshake)
+        if handshake == b'\x01':
+            txBuffer = b'\x80'
+            print(txBuffer)
+            com1.sendData(np.asarray(txBuffer))
+        else:
+            inicia = False
+            print("Handshake errado, meu amigo")
+
+
         while inicia:
 
             print("A recepção vai começar \n")
@@ -61,6 +73,8 @@ def main():
 
             if pacote_atual_int == pacote_anterior_int + 1:
                 pacote_correto = True
+            else:
+                pacote_correto = False
 
             ultimo_pacote_b, _ = com1.getData(2)
             ultimo_pacote = int.from_bytes(ultimo_pacote_b, "little")
@@ -68,8 +82,22 @@ def main():
             tamanho_payload, _ = com1.getData(1)
             tamanho_payload_int = int.from_bytes(tamanho_payload, "little")
 
+            _,_ = com1.getData(7)
+
             if pacote_atual_int == ultimo_pacote:
-                payload, _ = com1.getData(tamanho_payload_int)
+                tamanho_payload_int_real = com1.rx.getBufferLen() - 3
+                if tamanho_payload_int_real == tamanho_payload_int:
+                    payload, _ = com1.getData(tamanho_payload_int)
+                else:
+                    txBuffer = b'\x11'
+                    print(txBuffer)
+                    com1.sendData(np.asarray(txBuffer))
+                    inicia = False
+                    print('\nErro: tamanho do payload do pacote diferente do esperado')
+                    com1.disable()
+                    ultimo_pacote = True
+                    
+                
             else:
                 payload, _ = com1.getData(50)
 
@@ -77,10 +105,12 @@ def main():
 
             print("a recepção terminou \n")
 
+            # txBuffer = b'\xff'
+            # com1.sendData(np.asarray(txBuffer))
+            eop_correto = False
             if eop == b'\xff\xff\xff':
                 eop_correto = True
-
-            if eop_correto and pacote_correto:
+            if eop_correto and pacote_correto and ultimo_pacote:
 
                 imagem = imagem + (payload)
                 pacote_anterior_int = pacote_atual_int
@@ -91,19 +121,28 @@ def main():
                     print("o envio vai começar \n")
                     com1.sendData(np.asarray(txBuffer))
                     print("o envio terminou \n")
+                    imagemCopia = r"C:\Users\brnos\Documents\INSPER\Camadas\projeto3\img\imagemCopia.jpg"
+                    f = open(imagemCopia, 'wb')
+                    f.write(imagem)
+                    f.close()
+                    print('\nConcluído com Sucesso')
+
 
                 else:
-                    txBuffer = b'ok'
+                    txBuffer = b'\x80'
+                    print(txBuffer)
                     print("o envio vai começar \n")
                     com1.sendData(np.asarray(txBuffer))
                     print("o envio terminou \n")
                     
             else:
-                txBuffer = b'erro!'
-                print("o envio vai começar \n")
-                com1.sendData(np.asarray(txBuffer))
-                print("o envio terminou \n")
-                inicia = False     
+                if ultimo_pacote == False:
+                    print('\nEnvio fora de ordem! \n')
+                    txBuffer = b'\x11'
+                    print("o envio vai começar \n")
+                    com1.sendData(np.asarray(txBuffer))
+                    print("o envio terminou \n")
+                    inicia = False     
      
         # Encerra comunicação
         print("-------------------------")

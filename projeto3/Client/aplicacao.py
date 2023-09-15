@@ -62,7 +62,7 @@ def main():
             '11': 0x00,
         }
 
-        with open("Client/img/imagem.jpg", "rb") as image:
+        with open("img/imagem.jpg", "rb") as image:
             f = image.read()
             b = bytearray(f)
             c = b
