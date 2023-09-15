@@ -107,9 +107,13 @@ def main():
             txSize = com1.tx.getStatus()
                 
             
-        print('enviou = {}' .format(txSize))
+        print('enviou = {} \n' .format(txSize))
 
-        time.sleep(5)
+        print(f'Total enviado: {i} \n' .format(txSize))
+        t = time.time() + 5
+        while com1.rx.getBufferLen() == 0 and time.time() < t:
+            com1.rx.getBufferLen() 
+            
         #Agora vamos iniciar a recepção dos dados. Se algo chegou ao RX, deve estar automaticamente guardado
         #Observe o que faz a rotina dentro do thread RX
         #print um aviso de que a recepção vai começar.
@@ -126,6 +130,8 @@ def main():
             com1.disable()
 
         rxBuffer, nRx = com1.getData(2)
+
+        print(f'Recebeu: {int.from_bytes(rxBuffer, "little")} \n')
 
         if (i) != int.from_bytes(rxBuffer, "little"):
             print('ERRO!')

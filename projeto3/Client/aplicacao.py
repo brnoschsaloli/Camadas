@@ -13,7 +13,7 @@
 from enlace import *
 import time
 import numpy as np
-import random
+import os
 
 # voce deverá descomentar e configurar a porta com através da qual ira fazer comunicaçao
 #   para saber a sua porta, execute no terminal :
@@ -67,6 +67,36 @@ def main():
             b = bytearray(f)
             c = b
 
+        handshake = True
+        while handshake is True:
+            txBuffer = bytes([0x01])
+            com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
+            time.sleep(0.05)
+
+            txSize = com1.tx.getStatus()
+            while txSize == 0:
+                txSize = com1.tx.getStatus()
+                                
+            print('enviou = {}' .format(txSize))
+
+            t = time.time() + 5
+            while com1.rx.getBufferLen() == 0 and time.time() < t:
+                com1.rx.getBufferLen() 
+            
+            if com1.rx.getBufferLen() == 0:
+                resposta = input('“Servidor inativo. Tentar novamente? S/N” \n')
+                if resposta == 'S':
+                    handshake = True
+                else:
+                    print('Time Out')
+                    print("-------------------------")
+                    print("Comunicação encerrada")
+                    print("-------------------------")
+                    com1.disable()
+            
+            else:
+                handshake = False
+
         txBuffer = c  #isso é um array de bytes
         tamanho = len(txBuffer)
         ntotal = tamanho//50
@@ -93,7 +123,7 @@ def main():
             head = bytes([tamanhos['0'], tamanhos['1'], tamanhos['2'], tamanhos['3'], tamanhos['4'], tamanhos['5'], tamanhos['6'], tamanhos['7'], tamanhos['8'], tamanhos['9'], tamanhos['10'], tamanhos['11']])
             payload = c[0:50]
             c = c[50:tamanho]
-            Eop = bytes([0xff,0xff,0xff])
+            Eop = bytes([255,255,255])
 
             txBuffer = head + payload + Eop
         
@@ -110,29 +140,40 @@ def main():
                         
             print('enviou = {}' .format(txSize))
 
-            while com1.rx.getBufferLen() == 0:
-                com1.rx.getBufferLen()
-            
-            rxBuffer, nRx = com1.getData(1)
+            t = time.time() + 2
 
-            while rxBuffer == b'erro!':
-                com1.sendData(np.asarray(txBuffer))
+            while com1.rx.getBufferLen() == 0 and time.time() < t:
+                com1.rx.getBufferLen()
+
+            while com1.rx.getBufferLen() == 0:
+                com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
                 time.sleep(0.05)
 
                 txSize = com1.tx.getStatus()
                 while txSize == 0:
                     txSize = com1.tx.getStatus()
-                        
+                            
                 print('enviou = {}' .format(txSize))
 
-                while com1.rx.getBufferLen() == 0:
-                    com1.rx.getBufferLen() == 0
-                
-                rxBuffer, nRx = com1.getData(1)
+                t = time.time() + 2
+
+                while com1.rx.getBufferLen() == 0 and time.time() < t:
+                    com1.rx.getBufferLen()
+
+                print(com1.rx.getBufferLen())            
+
+            rxBuffer, nRx = com1.getData(1)  
+
+            print(rxBuffer)
+
+            if rxBuffer == b'\x11':
+                print('Erro')
+                print("-------------------------")
+                print("Comunicação encerrada")
+                print("-------------------------")
+                com1.disable()
 
             n += 1
-
-
         #Envia bit final    
         txBuffer = bytes([0x01, 0xFF])  #isso é um array de bytes
         
@@ -149,29 +190,20 @@ def main():
         while txSize == 0:
             txSize = com1.tx.getStatus()
                 
-            
         print('enviou = {}' .format(txSize))
 
-        t = time.time() + 5
-        while com1.rx.getBufferLen() == 0 and time.time() < t:
-            com1.rx.getBufferLen() == 0
-        
-        #Agora vamos iniciar a recepção dos dados. Se algo chegou ao RX, deve estar automaticamente guardado
-        #Observe o que faz a rotina dentro do thread RX
-        #print um aviso de que a recepção vai começar.
+        while com1.rx.getBufferLen() == 0:
+            com1.rx.getBufferLen()
+            
+        rxBuffer, nRx = com1.getData(1)
 
-        #Será que todos os bytes enviados estão realmente guardadas? Será que conseguimos verificar?
-        #Veja o que faz a funcao do enlaceRX  getBufferLen
-      
-        #acesso aos bytes recebidos
-        if com1.rx.getBufferLen() == 0:
-            print('Time Out')
-            print("-------------------------")
-            print("Comunicação encerrada")
-            print("-------------------------")
+        if rxBuffer == b'\x11':
+            print('Erro')
             com1.disable()
+        else:
+            # Encerra comunicação
+            print("Sucesso")
 
-        # Encerra comunicação
         print("-------------------------")
         print("Comunicação encerrada")
         print("-------------------------")
