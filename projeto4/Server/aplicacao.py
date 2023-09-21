@@ -50,37 +50,36 @@ def main():
         def makeheader(h0,h1,h2,h3,h4,h5,h6,h7,h8,h9):
             return  bytearray([h0,h1,h2,h3,h4,h5,h6,h7,h8,h9])
         
-        def getheader():
-            int.from_bytes(pacote_atual_b, "little")
-            tm = int.from_bytes(com1.getData(1), "little")
-            serv = int.from_bytescom1.getData(1)
-            liv = int.from_bytescom1.getData(1)
-            n_packs = int.from_bytescom1.getData(1)
-            n_pack = int.from_bytescom1.getData(1)
-            if tm == 1:
-                id = int.from_bytescom1.getData(1)
+        def getDatagrama():
+            type = int.from_bytes(com1.getData(1), "little")
+            serv = int.from_bytes(com1.getData(1), "little")
+            free = int.from_bytes(com1.getData(1), "little")
+            n_packs = int.from_bytes(com1.getData(1), "little")
+            n_pack = int.from_bytes(com1.getData(1), "little")
+            if type == 1:
+                id = int.from_bytes(com1.getData(1), "little")
             else:
-                t_payload = int.from_bytescom1.getData(1)
-            reset_pack = int.from_bytescom1.getData(1)
-            last_pack = int.from_bytescom1.getData(1)
-            crc1 = int.from_bytescom1.getData(1)
-            crc2 = int.from_bytescom1.getData(1)
-            message = com1.getData(t_payload)
+                t_payload = int.from_bytes(com1.getData(1), "little")
+            reset_pack = int.from_bytes(com1.getData(1), "little")
+            last_pack = int.from_bytes(com1.getData(1), "little")
+            crc1 = int.from_bytes(com1.getData(1), "little")
+            crc2 = int.from_bytes(com1.getData(1), "little")
+            payload = com1.getData(t_payload)
             eop = com1.getData(4)
-            if tm == 1:
-                return tm,serv,liv,n_packs,n_pack,id,reset_pack,last_pack,crc1,crc2,message,eop
+            if type == 1:
+                return type,serv,free,n_packs,n_pack,id,reset_pack,last_pack,crc1,crc2,payload,eop
             else:
-                return tm,serv,liv,n_packs,n_pack,t_payload,reset_pack,last_pack,crc1,crc2,message,eop
+                return type,serv,free,n_packs,n_pack,t_payload,reset_pack,last_pack,crc1,crc2,payload,eop
 
 
         answer = b''
         cont = 0
         ocioso = True
-        if ocioso == True:
+        while ocioso == True:
             if com1.rx.getBufferLen() != 0:  
-                
-                if tm == 1:
-                    if serv == 'x':
+                type,serv,free,n_packs,n_pack,id,reset_pack,last_pack,crc1,crc2,payload,eop = getDatagrama()
+                if type == 1:
+                    if serv == 13:
                         ocioso = False
                     else:
                         time.sleep(1)
@@ -88,10 +87,55 @@ def main():
                     time.sleep(1)
             else:
                 time.sleep(1)
-        else:
-            
-            txBuffer = 'msg2'
-            cont += 1
+        #m2
+        header = makeheader(2,0,0,0,0,0,0,cont,0,0)
+        eop_ = b'\xAA\xBB\xCC\xDD'
+        txBuffer = header + eop
+        com1.sendData(np.asarray(txBuffer))
+        cont += 1
+        ocioso = True
+        while ocioso:
+            if cont <= n_packs:
+                t1 = time.time()
+                t2 = time.time()
+                if com1.rx.getBufferLen() != 0:  
+                    type,serv,free,n_packs,n_pack,id,reset_pack,last_pack,crc1,crc2,payload,eop = getDatagrama()
+                    answer = answer + payload
+                    if cont == n_pack: #m4
+                        if eop == eop_:
+                            header = (4,0,0,0,0,0,0,cont,0,0)
+                            txBuffer = header + eop_
+                            com1.sendData(np.asarray(txBuffer)) 
+                            cont+=1
+                        else: #m6
+                            header = makeheader(6,0,0,0,0,0,cont,cont,0,0)
+                            txBuffer = header + eop_
+                            com1.sendData(np.asarray(txBuffer)) 
+                    else: #m6
+                        header = makeheader(6,0,0,0,0,0,cont,cont,0,0)
+                        txBuffer = header + eop_
+                        com1.sendData(np.asarray(txBuffer))                        
+                else:
+                    time.sleep(1)
+                    if t2 + 20 > time.time():
+                        ocioso = False
+                        header = (5,0,0,0,0,0,0,cont,0,0)
+                        txBuffer = header + eop_
+                        com1.sendData(np.asarray(txBuffer)) 
+                        com1.disable()
+                    else:
+                        if t1 + 2 > time.time(): #m4
+                            header = (4,0,0,0,0,0,0,cont-1,0,0)
+                            txBuffer = header + eop_
+                            com1.sendData(np.asarray(txBuffer)) 
+                            t1 = time.time()
+
+            else:
+                com1.disable()
+                print("--------------------")
+                print("      SUCESSO!      ")
+                print("--------------------")
+
                      
 
      
