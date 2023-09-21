@@ -48,18 +48,16 @@ def main():
         
         #txBuffer = imagem em bytes!
         tamanhos = {
-            '0': 0x00,
-            '1': 0x00,
-            '2': 0x00,
-            '3': 0x00,
-            '4': 0x00,
-            '5': 0x00,
-            '6': 0x00,
-            '7': 0x00,
-            '8': 0x00,
-            '9': 0x00,
-            '10': 0x00,
-            '11': 0x00,
+            'h0': 0x00,
+            'h1': 0x00,
+            'h2': 0x00,
+            'h3': 0x00,
+            'h4': 0x00,
+            'h5': 0x00,
+            'h6': 0x00,
+            'h7': 0x00,
+            'h8': 0x00,
+            'h9': 0x00,
         }
 
         with open("img/imagem.jpg", "rb") as image:
@@ -67,9 +65,26 @@ def main():
             b = bytearray(f)
             c = b
 
+        txBuffer = c  #isso é um array de bytes
+        tamanho = len(txBuffer)
+        ntotal = tamanho//114
+        nresto = tamanho%114
+
+        if nresto != 0:
+            ntotal += 1
+            
+        tamanhos['h2'] = nresto
+        tamanhos['h3'] = ntotal
+ 
+
+        Eop = bytes([0xAA,0xBB,0xCC,0xDD])
+
         handshake = True
+        tamanhos['h0'] = 0x01
+        tamanhos['h1'] = 0x13
+        head = bytes([tamanhos['h0'], tamanhos['h1'], tamanhos['h2'], tamanhos['h3'], tamanhos['h4'], tamanhos['h5'], tamanhos['h6'], tamanhos['h7'], tamanhos['h8'], tamanhos['h9']])
+        txBuffer = head + Eop
         while handshake is True:
-            txBuffer = bytes([0x01])
             com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
             time.sleep(0.05)
 
@@ -84,47 +99,21 @@ def main():
                 com1.rx.getBufferLen() 
             
             if com1.rx.getBufferLen() == 0:
-                resposta = input('“Servidor inativo. Tentar novamente? S/N” \n')
-                if resposta == 'S':
-                    handshake = True
-                else:
-                    print('Time Out')
-                    print("-------------------------")
-                    print("Comunicação encerrada")
-                    print("-------------------------")
-                    com1.disable()
-            
+                handshake = True
+
             else:
-                handshake = False
+                tipo = com1.getData(1)
+                com1.rx.clearBuffer()
+                if int.from_bytes(tipo, "little") == 2:
+                    handshake = False
 
-        txBuffer = c  #isso é um array de bytes
-        tamanho = len(txBuffer)
-        ntotal = tamanho//50
-        nresto = tamanho%50
-
-        if nresto != 0:
-            ntotal += 1
-        tamanhos['4'] = nresto
-        
-        if ntotal > 255:
-            tamanhos['2'] = 255
-            tamanhos['3'] = (ntotal - 255)
-        else:
-            tamanhos['2'] = ntotal
-
-        n = 1
-        while n <= ntotal:
-            if n <= 255:
-                tamanhos['0'] = n
-            else:
-                tamanhos['0'] = 0xff
-                tamanhos['1'] = (n-255)
-            
-            head = bytes([tamanhos['0'], tamanhos['1'], tamanhos['2'], tamanhos['3'], tamanhos['4'], tamanhos['5'], tamanhos['6'], tamanhos['7'], tamanhos['8'], tamanhos['9'], tamanhos['10'], tamanhos['11']])
-            payload = c[0:50]
-            c = c[50:tamanho]
-            Eop = bytes([255,255,255])
-
+        cont = 1
+        while cont <= ntotal:
+            tamanhos['h0'] = 0x03
+            tamanhos['h4'] = cont
+            head = bytes([tamanhos['h0'], tamanhos['h1'], tamanhos['h2'], tamanhos['h3'], tamanhos['h4'], tamanhos['h5'], tamanhos['h6'], tamanhos['h7'], tamanhos['h8'], tamanhos['h9'], tamanhos['h10'], tamanhos['h11']])
+            payload = c[0:114]
+            c = c[114:tamanho]
             txBuffer = head + payload + Eop
         
             print("meu array de bytes tem tamanho {}" .format(len(txBuffer)))
@@ -140,40 +129,78 @@ def main():
                         
             print('enviou = {}' .format(txSize))
 
-            t = time.time() + 2
+            timer1 = time.time()
+            timer2 = time.time()
+            verificação = True
+            while verificação:
 
-            while com1.rx.getBufferLen() == 0 and time.time() < t:
-                com1.rx.getBufferLen()
+                if com1.rx.getBufferLen() != 0:
+                    tipo = com1.getData(1)
+                    com1.rx.clearBuffer()
+                    if int.from_bytes(tipo, "little") == 4:
+                        verificação = False
+                        cont += 1
 
-            while com1.rx.getBufferLen() == 0:
-                com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
-                time.sleep(0.05)
+                else:
+                    if (time.time() - timer1) > 5:
+                        com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
+                        time.sleep(0.05)
 
-                txSize = com1.tx.getStatus()
-                while txSize == 0:
-                    txSize = com1.tx.getStatus()
+                        txSize = com1.tx.getStatus()
+                        while txSize == 0:
+                            txSize = com1.tx.getStatus()
                             
-                print('enviou = {}' .format(txSize))
+                        print('enviou = {}' .format(txSize))
 
-                t = time.time() + 2
+                        timer1 = time.time()
+                    
+                    if (time.time() - timer2) > 20:
+                        tamanhos['h0'] = 0x05
+                        head = bytes([tamanhos['h0'], tamanhos['h1'], tamanhos['h2'], tamanhos['h3'], tamanhos['h4'], tamanhos['h5'], tamanhos['h6'], tamanhos['h7'], tamanhos['h8'], tamanhos['h9'], tamanhos['h10'], tamanhos['h11']])
+                        txBuffer = head + payload + Eop
+                        com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
+                        time.sleep(0.05)
 
-                while com1.rx.getBufferLen() == 0 and time.time() < t:
-                    com1.rx.getBufferLen()
+                        txSize = com1.tx.getStatus()
+                        while txSize == 0:
+                            txSize = com1.tx.getStatus()
+                            
+                        print('enviou = {}' .format(txSize))
 
-                print(com1.rx.getBufferLen())            
+                        print("-------------------------")
+                        print("Comunicação encerrada")
+                        print("-------------------------")
+                        com1.disable()
 
-            rxBuffer, nRx = com1.getData(1)  
+                    else:
+                        if com1.rx.getBufferLen() != 0:
+                            tipo = com1.getData(1)
+                            if int.from_bytes(tipo, "little") == 6:
+                                h1 = com1.getData(1)
+                                h2 = com1.getData(1)
+                                h3 = com1.getData(1)
+                                h4 = com1.getData(1)
+                                h5 = com1.getData(1)
+                                h6 = com1.getData(1)
+                                com1.rx.clearBuffer()
+                                cont = int.from_bytes(h6, "little")
+                                tamanhos['h0'] = 0x03
+                                tamanhos['h4'] = cont
+                                head = bytes([tamanhos['h0'], tamanhos['h1'], tamanhos['h2'], tamanhos['h3'], tamanhos['h4'], tamanhos['h5'], tamanhos['h6'], tamanhos['h7'], tamanhos['h8'], tamanhos['h9'], tamanhos['h10'], tamanhos['h11']])
+                                txBuffer = head + payload + Eop
+                                com1.sendData(np.asarray(txBuffer))  #as array apenas como boa pratica para casos de ter uma outra forma de dados
+                                time.sleep(0.05)
 
-            print(rxBuffer)
+                                txSize = com1.tx.getStatus()
+                                while txSize == 0:
+                                    txSize = com1.tx.getStatus()
+                                            
+                                print('enviou = {}' .format(txSize))
 
-            if rxBuffer == b'\x11':
-                print('Erro')
-                print("-------------------------")
-                print("Comunicação encerrada")
-                print("-------------------------")
-                com1.disable()
+                                timer1 = time.time()
+                                timer2 = time.time()
 
-            n += 1
+                        
         #Envia bit final    
         txBuffer = bytes([0x01, 0xFF])  #isso é um array de bytes
         
