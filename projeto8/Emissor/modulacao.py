@@ -72,12 +72,13 @@ def main():
     # construa o gráfico do sinal emitido e o gráfico da transformada de Fourier. Cuidado. Como as frequencias sao relativamente altas, voce deve plotar apenas alguns pontos (alguns periodos) para conseguirmos ver o sinal
     samplerate, u = wavfile.read('audios/initial44100.wav')
     u = [s[0] for s in u]
+    u = u[0:220500]
 
     fs = 44100
+    T = 5
     y = []
     a = 0.005962
     b = 0.005528
-    c = 1
     d = -1.782 
     e = 0.7971
     i = 0
@@ -85,19 +86,32 @@ def main():
         if i < 2:
             yf = u[i]
         else:
-            yf = (-d* y[i-1] - e*y[i-2] + a*u[i-1] + b*u[i-2])/c
+            yf = (-d* y[i-1] - e*y[i-2] + a*u[i-1] + b*u[i-2])
 
         y.append(yf)
+        print(i, len(u))
         i += 1
+
+    st=[]
+    t = np.linspace(0,T,int(T*fs))
+    i = 0
+    while i < len(y):
+        c = np.cos(2*np.pi*14000*t[i])*14000
+        st.append(c + y[i]*c)
+        print(len(st), len(y))
+        i+=1
+
+    st = st/max(st)
 
     s.plotFFT(u, 44100)
     s.plotFFT(y, 44100)
+    s.plotFFT(st, 44100)
 
     print("Inicializando encoder")
     print("Aguardando usuário")
     print("Gerando Tons base")
     print("Executando as senoides (emitindo o som)")
-    sd.play(y, fs)
+    sd.play(st, fs)
     # Exibe gráficos
     plt.show()
     # aguarda fim do audio
