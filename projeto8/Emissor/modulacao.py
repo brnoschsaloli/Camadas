@@ -100,18 +100,20 @@ def main():
         st.append(c + y[i]*c)
         print(len(st), len(y))
         i+=1
-
+    
     st = st/max(st)
 
     s.plotFFT(u, 44100)
     s.plotFFT(y, 44100)
     s.plotFFT(st, 44100)
 
+    wavfile.write('audios/audio_modulado.wav', 44100, np.array(st))
+
     print("Inicializando encoder")
     print("Aguardando usuário")
     print("Gerando Tons base")
     print("Executando as senoides (emitindo o som)")
-    sd.play(st, fs)
+    #sd.play(st, fs)
     # Exibe gráficos
     plt.show()
     # aguarda fim do audio
