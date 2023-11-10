@@ -113,7 +113,11 @@ def main():
     print("Aguardando usuário")
     print("Gerando Tons base")
     print("Executando as senoides (emitindo o som)")
-    #sd.play(st, fs)
+    sd.play(y, fs)
+
+    sd.wait()
+
+    sd.play(st, fs)
     # Exibe gráficos
     plt.show()
     # aguarda fim do audio
